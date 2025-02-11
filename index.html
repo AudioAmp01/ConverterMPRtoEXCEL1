@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MPR to Excel Converter</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Lato">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Montserrat">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body, h1, h2, h3, h4, h5, h6 {font-family: "Lato", sans-serif}
+        .w3-bar, h1, button {font-family: "Montserrat", sans-serif}
+        .fa-anchor, .fa-coffee {font-size:200px}
+        .card {
+            width: 100%; /* Set width to 100% */
+            margin: 20px 0; /* Add vertical margin */
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: scale(1.02);
+        }
+        table {
+            width: 150%; /* Full width for tables */
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #ffcccc; /* Light red background for header */
+            color: #900; /* Dark red text color */
+        }
+        tbody tr:hover {
+            background-color: #ffe6e6; /* Light red highlight on row hover */
+        }
+        @media (max-width: 600px) {
+            body {
+                font-size: 14px;
+            }
+            .card {
+                padding: 15px;
+            }
+            th, td {
+                padding: 6px;
+                font-size: 14px; /* Adjust font size for smaller screens */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="w3-container w3-red w3-center" style="padding:128px 16px">
+    <h1 class="w3-margin w3-jumbo">MPR to Excel Converter</h1>
+    <p class="w3-xlarge">Convert MPR files to Excel</p>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+        <input type="file" id="fileInput" accept=".mpr" onchange="readFile()" class="w3-button w3-black w3-padding-large w3-large w3-margin-top">
+        <button id="convertButton" onclick="convertToExcel()" class="w3-button w3-black w3-padding-large w3-large w3-margin-top" style="display: none;">Convert & Download</button>
+    </div>
+    <p id="statusMessage" style="color: rgb(255, 255, 255);"></p>
+</header>
+
+<!-- Main Content -->
+<div class="w3-row-padding w3-padding-64 w3-container">
+    <div class="w3-content" style="max-width: 1200px; margin: auto;"> <!-- Center the content -->
+        <div class="w3-twothird" style="width: 100%;">
+            <div class="card" id="resultCard" style="display: none;">
+                <h3>File Preview</h3>
+                <p><strong>Tipe:</strong> <span id="tanggalvalue"></span></p>
+                <p><strong>Real Run:</strong> <span id="RealRunValue"></span></p>
+                <p><strong>Pre-Proc Time:</strong> <span id="fwaitValue"></span></p>
+                <p><strong>Post-Proc Time:</strong> <span id="PostTimeValue"></span></p>
+                <p><strong>Total Run Time:</strong> <span id="totalValue"></span></p>
+                <p><strong>PCB Sheet:</strong> <span id="PCBsheetValue"></span></p>
+                <p><strong>PCB Unit:</strong> <span id="PCBunitValue"></span></p>
+                
+                <h3>TakeUpMiss Data</h3>
+                <table id="takeUpMissTable" class="w3-table w3-bordered">
+                    <thead>
+                        <tr>
+                            <th>Address</th>
+                            <th>SubAdd</th>
+                            <th>FdrType</th>
+                            <th>Name</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be inserted here -->
+                    </tbody>
+                </table>
+                
+                <h3>ChipRcgMiss Data</h3>
+                <table id="chipRcgMissTable" class="w3-table w3-bordered">
+                    <thead>
+                        <tr>
+                            <th>Address</th>
+                            <th>SubAdd</th>
+                            <th>FdrType</th>
+                            <th>Name</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Footer -->
+<footer class="w3-container w3-padding-64 w3-center w3-opacity">  
+    <div class="w3-xlarge w3-padding-32">
+        <img src="assets/Panasonic.png" alt="Logo Panasonic" style="width: 150px; height: 150px; margin-right: 16px; margin-top: 20px;">
+        <img src="assets/PENS.png" alt="Logo Panasonic" style="width: 50px; height: 50px; margin-right: 16px; margin-top: 20px;">
+    </div>
+    <p>© 2025 PENS - Panasonic Collaboration</p>
+</footer>
+
+<script>
+    function readFile() {
+        const fileInput = document.getElementById('fileInput');
+        const statusMessage = document.getElementById('statusMessage');
+        const resultCard = document.getElementById('resultCard');
+        const takeUpMissTable = document.getElementById('takeUpMissTable').getElementsByTagName('tbody')[0];
+        const chipRcgMissTable = document.getElementById('chipRcgMissTable').getElementsByTagName('tbody')[0];
+        const fwaitValue = document.getElementById('fwaitValue');
+        const totalValue = document.getElementById('totalValue');
+        const RealRunValue = document.getElementById('RealRunValue');
+        const PostTimeValue = document.getElementById('PostTimeValue');
+        const PCBsheetValue = document.getElementById('PCBsheetValue');
+        const PCBunitValue = document.getElementById('PCBunitValue');
+        const tanggalvalue = document.getElementById('tanggalvalue');
+        const convertButton = document.getElementById('convertButton');
+        
+        statusMessage.textContent = ''; // Clear previous messages
+        resultCard.style.display = 'none'; // Hide result card initially
+        convertButton.style.display = 'none'; // Hide convert button initially
+        takeUpMissTable.innerHTML = ''; // Clear previous data
+        chipRcgMissTable.innerHTML = ''; // Clear previous data
+        
+        if (!fileInput.files.length) {
+            statusMessage.textContent = "Please select an MPR file first.";
+            return;
+        }
+        
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            try {
+                const text = event.target.result;
+                const lines = text.split('\n');
+                let data = lines.map(line => line.trim().split(/\s+/)); // Split each line into words
+                
+                // Validate data (example: check if the file has enough lines)
+                if (data.length < 25) {
+                    statusMessage.textContent = "Invalid MPR file format.";
+                    return;
+                }
+                
+                // Read values from specific cells
+                const fwait = data[19][2]; // C20 (0-based index: row 19, column 2)
+                const total = data[19][0]; // A20 (0-based index: row 19, column 0)
+                const a = data[19][1]; // B20 (0-based index: row 19, column 1)
+                const b = data[19][3]; // D20 (0-based index: row 19, column 3)
+                const c = data[23][0]; // A24 (0-based index: row 23, column 0)
+                const d = data[23][1]; // B24 (0-based index: row 23, column 1)
+                const tanggal = data[0][1];
+
+                // Display values in the result card
+                fwaitValue.textContent = fwait;
+                totalValue.textContent = total;
+                RealRunValue.textContent = a;
+                PostTimeValue.textContent = b;
+                PCBsheetValue.textContent = c;
+                PCBunitValue.textContent = d;
+                tanggalvalue.textContent = tanggal;
+                resultCard.style.display = 'block'; // Show result card
+                convertButton.style.display = 'block'; // Show convert button
+                
+                // Find the index of "[TakeUpMiss]"
+                let takeUpMissIndex = -1;
+                let chipRcgMissIndex = -1;
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].includes("[TakeUpMiss]")) {
+                        takeUpMissIndex = i;
+                    }
+                    if (data[i].includes("[ChipRcgMiss]")) {
+                        chipRcgMissIndex = i;
+                        break;
+                    }
+                }
+                
+                if (takeUpMissIndex === -1) {
+                    statusMessage.textContent = "TakeUpMiss not found in the file.";
+                    return;
+                }
+                
+                if (chipRcgMissIndex === -1) {
+                    statusMessage.textContent = "ChipRcgMiss not found in the file.";
+                    return;
+                }
+                
+                // Read column headers for TakeUpMiss
+                const takeUpMissHeaders = data[takeUpMissIndex + 1];
+                
+                // Read data rows for TakeUpMiss
+                for (let i = takeUpMissIndex + 2; i < chipRcgMissIndex; i++) {
+                    const dataRow = data[i];
+                    if (dataRow.length < takeUpMissHeaders.length) continue; // Skip incomplete rows
+                    
+                    // Calculate Total
+                    let total = 0;
+                    for (let j = 4; j < takeUpMissHeaders.length; j++) { // Start from NPA (index 4)
+                        total += parseFloat(dataRow[j]) || 0;
+                    }
+                    
+                    // Create table row
+                    const row = takeUpMissTable.insertRow();
+                    const cellAddress = row.insertCell(0);
+                    const cellSubAdd = row.insertCell(1);
+                    const cellFdrType = row.insertCell(2);
+                    const cellName = row.insertCell(3);
+                    const cellTotal = row.insertCell(4);
+                    
+                    cellAddress.textContent = dataRow[0];
+                    cellSubAdd.textContent = dataRow[1];
+                    cellFdrType.textContent = dataRow[2];
+                    cellName.textContent = dataRow[3];
+                    cellTotal.textContent = total;
+                }
+                
+                // Read column headers for ChipRcgMiss
+                const chipRcgMissHeaders = data[chipRcgMissIndex + 1];
+                
+                // Read data rows for ChipRcgMiss
+                for (let i = chipRcgMissIndex + 2; i < data.length; i++) {
+                    const dataRow = data[i];
+                    if (dataRow.length < chipRcgMissHeaders.length) continue; // Skip incomplete rows
+                    
+                    // Calculate Total
+                    let total = 0;
+                    for (let j = 4; j < chipRcgMissHeaders.length; j++) { // Start from NPA (index 4)
+                        total += parseFloat(dataRow[j]) || 0;
+                    }
+                    
+                    // Create table row
+                    const row = chipRcgMissTable.insertRow();
+                    const cellAddress = row.insertCell(0);
+                    const cellSubAdd = row.insertCell(1);
+                    const cellFdrType = row.insertCell(2);
+                    const cellName = row.insertCell(3);
+                    const cellTotal = row.insertCell(4);
+                    
+                    cellAddress.textContent = dataRow[0];
+                    cellSubAdd.textContent = dataRow[1];
+                    cellFdrType.textContent = dataRow[2];
+                    cellName.textContent = dataRow[3];
+                    cellTotal.textContent = total;
+                }
+            } catch (error) {
+                statusMessage.textContent = "An error occurred while reading the file: " + error.message;
+            }
+        };
+        
+        reader.onerror = function(event) {
+            statusMessage.textContent = "Error reading file.";
+        };
+        
+        reader.readAsText(file);
+    }
+
+    function convertToExcel() {
+        const fileInput = document.getElementById('fileInput');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        statusMessage.textContent = ''; // Clear previous messages
+        
+        if (!fileInput.files.length) {
+            statusMessage.textContent = "Please select an MPR file first.";
+            return;
+        }
+        
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+        
+        reader.onload = function(event) {
+            try {
+                const text = event.target.result;
+                const lines = text.split('\n');
+                let data = lines.map(line => line.trim().split(/\s+/)); // Split each line into words
+                
+                // Validate data (example: check if the file has enough lines)
+                if (data.length < 25) {
+                    statusMessage.textContent = "Invalid MPR file format.";
+                    return;
+                }
+                
+                // Find the index of "[TakeUpMiss]"
+                let takeUpMissIndex = -1;
+                let chipRcgMissIndex = -1;
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].includes("[TakeUpMiss]")) {
+                        takeUpMissIndex = i;
+                    }
+                    if (data[i].includes("[ChipRcgMiss]")) {
+                        chipRcgMissIndex = i;
+                        break;
+                    }
+                }
+                
+                if (takeUpMissIndex === -1) {
+                    statusMessage.textContent = "TakeUpMiss not found in the file.";
+                    return;
+                }
+                
+                if (chipRcgMissIndex === -1) {
+                    statusMessage.textContent = "ChipRcgMiss not found in the file.";
+                    return;
+                }
+                
+                // Create worksheet and workbook
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                const wb = XLSX.utils.book_new();
+                
+                // Merge cells A1 and B1
+                ws['!merges'] = [
+                    { s: { r: 3, c: 0 }, e: { r: 3, c: 1 } }, // A4:B4
+                    { s: { r: 4, c: 0 }, e: { r: 4, c: 1 } }, // A5:B5
+                    { s: { r: 5, c: 0 }, e: { r: 5, c: 1 } }, // A6:B6
+                    { s: { r: 6, c: 0 }, e: { r: 6, c: 2 } }, // A7:C7
+                    { s: { r: 7, c: 0 }, e: { r: 7, c: 2 } }, // A8:C8
+                    { s: { r: 8, c: 0 }, e: { r: 8, c: 1 } }, // A9:B9
+                    { s: { r: 10, c: 0 }, e: { r: 10, c: 1 } }, // A11:B11
+                    { s: { r: 13, c: 0 }, e: { r: 13, c: 1 } }, // A14:B14
+                    { s: { r: 15, c: 0 }, e: { r: 15, c: 1 } }, // A16:B16
+                    { s: { r: 17, c: 0 }, e: { r: 17, c: 1 } }, // A18:B18
+                    { s: { r: 21, c: 0 }, e: { r: 21, c: 1 } }, // A22:B22
+                    { s: { r: 26, c: 0 }, e: { r: 26, c: 1 } }, // A27:B27
+                    { s: { r: 27, c: 0 }, e: { r: 27, c: 1 } }, // A28:B28
+                    { s: { r: 29, c: 0 }, e: { r: 29, c: 1 } }, // A30:B30
+                ];
+                
+                // Set alignment for merged cell A1:B1
+                ws['A4'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A5'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A6'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A7'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A8'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A9'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A11'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A14'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A16'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A18'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A22'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A27'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A28'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                ws['A30'].s = {
+                    alignment: {
+                        horizontal: 'center',
+                        vertical: 'center'
+                    }
+                };
+                XLSX.utils.book_append_sheet(wb, ws, "MPR Data");
+                
+                // Get values from cell A12 and C1
+                const stage = data[11][0]; // A12 (0-based index: row 11, column 0)
+                const pValue = data[0][3]; // C1 (0-based index: row 0, column 2)
+                
+                // Get current date
+                const today = new Date();
+                const day = String(today.getDate()).padStart(2, '0');
+                const month = String(today.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+                const year = today.getFullYear();
+                const formattedDate = `${day}-${month}-${year}`;
+                
+                // Create filename
+                const fileName = `${stage}_${pValue}_${formattedDate}.xlsx`;
+                
+                // Save as Excel file
+                XLSX.writeFile(wb, fileName);
+                statusMessage.textContent = "File converted successfully!";
+            } catch (error) {
+                statusMessage.textContent = "An error occurred during conversion: " + error.message;
+            }
+        };
+        
+        reader.onerror = function(event) {
+            statusMessage.textContent = "Error reading file.";
+        };
+        
+        reader.readAsText(file);
+    }
+
+    // Used to toggle the menu on small screens when clicking on the menu button
+    function myFunction() {
+        var x = document.getElementById("navDemo");
+        if (x.className.indexOf("w3-show") == -1) {
+            x.className += " w3-show";
+        } else { 
+            x.className = x.className.replace(" w3-show", "");
+        }
+    }
+</script>
+
+</body>
+</html>
